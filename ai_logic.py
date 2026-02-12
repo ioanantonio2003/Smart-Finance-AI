@@ -1,52 +1,56 @@
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
+from google import genai
 import json
 
-# Încărcăm cheia secretă din .env
+# Încărcăm variabilele de mediu
 load_dotenv()
 
-# Configurăm Gemini cu cheia ta
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-def analyze_receipt(image_data):
+def analyze_receipt(image_input):
     """
-    Trimite imaginea la Gemini și cere datele structurate (JSON).
+    Trimite imaginea la Gemini folosind noul SDK google-genai.
     """
-    # Alegem modelul 'gemini-1.5-flash' care e rapid și bun cu imaginile
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print("Eroare: Cheia API lipsește din .env")
+        return None
 
-    # PROMPT-ul: Instrucțiunile exacte pentru AI
+    # Configurăm clientul
+    client = genai.Client(api_key=api_key)
+
     prompt = """
-    Ești un expert contabil. Analizează această imagine de bon fiscal/factură.
-    Extrage următoarele informații și returnează-le STRICT în format JSON, fără alte explicații:
-    
+    Ești un expert contabil. Analizează această imagine de bon fiscal.
+    Extrage datele și returnează STRICT un JSON valid, fără ```json sau alte marcaje.
+    Dacă imaginea nu este clară sau nu e un bon, returnează null.
+    Formatul trebuie să fie:
     {
-        "date": "data bonului în format YYYY-MM-DD (ex: 2024-02-12)",
-        "amount": suma totală (număr float, ex: 125.50),
+        "date": "YYYY-MM-DD",
+        "amount": 0.00,
         "currency": "RON",
-        "merchant": "numele magazinului",
-        "category": "alege una din: [Mâncare, Transport, Utilități, Haine, Altele]"
+        "merchant": "Nume Magazin",
+        "category": "Categorie (ex: Food, Transport, Utilities, Other)"
     }
-
-    Dacă nu poți citi bonul sau nu e un bon, returnează un JSON cu valori null.
-    Nu pune ```json la început sau sfârșit, dă-mi doar textul brut JSON.
     """
 
     try:
-        # Trimitem promptul + imaginea la AI
-        response = model.generate_content([prompt, image_data])
+        # AICI AM SCHIMBAT: Folosim versiunea specifică 001, care e cea mai stabilă
+        response = client.models.generate_content(
+            model="gemini-2.5-flash", 
+            contents=[prompt, image_input]
+        )
         
-        # Curățăm răspunsul (uneori AI-ul mai pune spații sau caractere extra)
-        clean_text = response.text.strip().replace("```json", "").replace("```", "")
-        
-        # Transformăm textul în dicționar Python
+        clean_text = response.text.strip()
+        # Curățăm formatarea Markdown dacă există
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+            
         return json.loads(clean_text)
         
     except Exception as e:
-        print(f"Eroare AI: {e}")
+        print(f"Eroare AI Detaliată: {e}")
         return None
 
-# Test rapid (doar dacă rulăm acest fișier direct)
 if __name__ == "__main__":
-    print("Acest fișier conține logica AI. Rulează 'app.py' pentru interfață.")
+    print("Logica AI actualizată la modelul gemini-1.5-flash-001.")
