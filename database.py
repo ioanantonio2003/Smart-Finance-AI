@@ -42,6 +42,17 @@ def add_expense(date, category, amount, description):
     conn.close()
     print(f"✅ Cheltuială adăugată: {description} - {amount} RON")
 
+def get_all_expenses():
+    """Returnează toate cheltuielile din baza de date."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # Le luăm ordonate după dată (cele mai noi primele)
+    c.execute('SELECT * FROM expenses ORDER BY date DESC')
+    data = c.fetchall()
+    
+    conn.close()
+    return data
+
 if __name__ == "__main__":
-    # Asta se execută doar când rulăm acest fișier direct
     init_db()
